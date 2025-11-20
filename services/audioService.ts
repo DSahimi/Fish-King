@@ -1,7 +1,14 @@
 
+// Extend Window interface for Safari support
+declare global {
+  interface Window {
+    webkitAudioContext: typeof AudioContext;
+  }
+}
+
 // Simple synthesized audio service to avoid external assets
 export const playVictorySound = () => {
-    const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
     if (!AudioContext) return;
   
     const ctx = new AudioContext();
@@ -36,7 +43,7 @@ export const playVictorySound = () => {
   };
   
   export const playSplashSound = () => {
-      const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+      const AudioContext = window.AudioContext || window.webkitAudioContext;
       if (!AudioContext) return;
       const ctx = new AudioContext();
       

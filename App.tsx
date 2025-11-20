@@ -1,7 +1,15 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { GameState, FishSpecies, CatchResult, GameMode, BoatState } from './types';
-import { FISH_SPECIES, TENSION_DECAY_RATE, TENSION_GAIN_RATE, PROGRESS_GAIN_RATE, CAST_DISTANCE, FISH_FIGHT_CHANCE } from './constants';
+import { 
+  FISH_SPECIES, 
+  TENSION_DECAY_RATE, 
+  TENSION_GAIN_RATE, 
+  PROGRESS_GAIN_RATE, 
+  CAST_DISTANCE, 
+  FISH_FIGHT_CHANCE,
+  BOAT_PHYSICS 
+} from './constants';
 import { TensionGauge } from './components/TensionGauge';
 import { RodOverlay } from './components/RodOverlay';
 import { Notification } from './components/Notifications';
@@ -12,23 +20,27 @@ import confetti from 'canvas-confetti';
 import { X, Anchor, Map as MapIcon, Camera, CloudRain, Wind } from 'lucide-react';
 
 export default function App() {
-  // --- State ---
+  // --- State Management ---
   const [gameMode, setGameMode] = useState<GameMode>(GameMode.BOATING);
   
-  // Fishing State
+  // Fishing Mechanics State
   const [gameState, setGameState] = useState<GameState>(GameState.IDLE);
-  const [tension, setTension] = useState(0); // 0-100
+  const [tension, setTension] = useState(0); // 0-100 scale
   const [distance, setDistance] = useState(CAST_DISTANCE); 
   const [currentFish, setCurrentFish] = useState<FishSpecies | null>(null);
   const [lastCatch, setLastCatch] = useState<CatchResult | null>(null);
   const [showModal, setShowModal] = useState(false);
+  
+  // AI Analysis State
   const [aiAnalysis, setAiAnalysis] = useState<string>("");
   const [loadingAnalysis, setLoadingAnalysis] = useState(false);
   
-  // Boat State
+  // Boat Physics State
   const [boat, setBoat] = useState<BoatState>({ x: 0, y: 0, rotation: 0, speed: 0 });
 
-  // --- Refs for Game Loop (Single Source of Truth for Physics) ---
+  // --- Refs for Game Loop (Single Source of Truth) ---
+  // We use refs to store the game state inside the requestAnimationFrame loop.
+  // This avoids "stale closure" issues common in React useEffect hooks.
   const inputRef = useRef({ 
     space: false, 
     up: false, 
@@ -44,15 +56,16 @@ export default function App() {
   const gameModeRef = useRef(gameMode);
   const currentFishRef = useRef<FishSpecies | null>(null);
 
-  // Sync refs with state
+  // Sync refs with React state for rendering
   useEffect(() => { gameStateRef.current = gameState; }, [gameState]);
   useEffect(() => { distanceRef.current = distance; }, [distance]);
   useEffect(() => { tensionRef.current = tension; }, [tension]);
   useEffect(() => { boatRef.current = boat; }, [boat]);
   useEffect(() => { gameModeRef.current = gameMode; }, [gameMode]);
-  // Note: currentFishRef is updated manually where setCurrentFish is called to avoid closure lag
+  // Note: currentFishRef is updated manually where setCurrentFish is called to ensure instant availability
 
-  // --- Helpers ---
+  // --- Game Logic Helpers ---
+
   const getRandomFish = () => {
     const roll = Math.random();
     let pool = FISH_SPECIES.filter(f => f.rarity === 'Common');
@@ -210,8 +223,9 @@ export default function App() {
     };
   }, [handleKeyDown, handleKeyUp]);
 
-  // --- Physics Loop ---
-  // Runs continuously, uses refs for state to avoid stale closures
+  // --- Physics Engine Loop ---
+  // Runs continuously on animation frames. 
+  // Uses refs to read inputs/state and write new state to prevent closure staleness.
   const gameLoop = useCallback(() => {
     const mode = gameModeRef.current;
     const state = gameStateRef.current;
@@ -219,19 +233,18 @@ export default function App() {
     // --- Boating Physics ---
     if (mode === GameMode.BOATING) {
         let { x, y, rotation, speed } = boatRef.current;
-        const ACCEL = 0.1;
-        const MAX_SPEED = 5.0;
-        const TURN_SPEED = 2.0;
-        const FRICTION = 0.98;
+        const { ACCEL, MAX_SPEED, TURN_SPEED, FRICTION } = BOAT_PHYSICS;
 
         if (inputRef.current.up) speed += ACCEL;
         if (inputRef.current.down) speed -= ACCEL;
         
+        // Clamp Speed
         if (speed > MAX_SPEED) speed = MAX_SPEED;
         if (speed < -MAX_SPEED / 2) speed = -MAX_SPEED / 2;
 
         speed *= FRICTION;
 
+        // Turn only if moving
         if (Math.abs(speed) > 0.1) {
             if (inputRef.current.left) rotation -= TURN_SPEED * (speed > 0 ? 1 : -1);
             if (inputRef.current.right) rotation += TURN_SPEED * (speed > 0 ? 1 : -1);
@@ -301,7 +314,7 @@ export default function App() {
     gameLoopRef.current = requestAnimationFrame(gameLoop);
   }, []); // No dependencies ensures loop never restarts and always uses refs
 
-  // Start loop once
+  // Initialize loop
   useEffect(() => {
     gameLoopRef.current = requestAnimationFrame(gameLoop);
     return () => {

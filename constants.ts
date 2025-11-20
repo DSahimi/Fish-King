@@ -70,9 +70,17 @@ export const FISH_SPECIES: FishSpecies[] = [
   }
 ];
 
-// Game mechanics constants - Tuned for easier, smoother feel
+// Fishing Mechanics Constants
 export const TENSION_DECAY_RATE = 2.5; // Drops very fast when released (Good for saving)
 export const TENSION_GAIN_RATE = 0.4;  // Rises slower (Easier to manage)
 export const PROGRESS_GAIN_RATE = 0.6; // Fish comes in much faster
 export const FISH_FIGHT_CHANCE = 0.008; // Very rare random jerks to prevent "bouncing"
 export const CAST_DISTANCE = 100;
+
+// Boat Physics Constants
+export const BOAT_PHYSICS = {
+  ACCEL: 0.1,
+  MAX_SPEED: 5.0,
+  TURN_SPEED: 2.0,
+  FRICTION: 0.98
+};
